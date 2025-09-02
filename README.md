@@ -1,312 +1,358 @@
-# SMART INVOICE ENTRY AUTOMATION (SIEA)
+# SIEA - Smart Invoice Entry Automation
 
-## 🎯 Proje Açıklaması
-SIEA, kullanıcıların kamera ile fatura tarayarak veya fotoğraf çekerek otomatik veri girişi yapabilmelerini sağlayan akıllı bir fatura işleme sistemidir. Modern web teknolojileri ve OCR teknolojisi kullanarak fatura verilerini otomatik olarak çıkarır ve güvenli bir şekilde saklar.
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![Python](https://img.shields.io/badge/Python-3.8+-blue.svg)](https://www.python.org/)
+[![React](https://img.shields.io/badge/React-18+-61DAFB.svg)](https://reactjs.org/)
+[![FastAPI](https://img.shields.io/badge/FastAPI-0.104+-009688.svg)](https://fastapi.tiangolo.com/)
 
-## ✨ Özellikler
-- 📷 **Kamera Entegrasyonu:** Web kamerası ile gerçek zamanlı fatura tarama
-- 📁 **Dosya Yükleme:** Drag & drop ile fatura fotoğrafı yükleme
-- 🤖 **AI OCR:** Google Gemini 1.5 Flash ile akıllı veri çıkarma
-- 🗄️ **Güvenli Depolama:** PostgreSQL'de şifreli veri saklama
-- 📊 **Excel Export:** Stillendirilmiş Excel dosyası oluşturma (.xlsx)
-- 🔒 **Veri Güvenliği:** 5 yıllık otomatik veri silme politikası
-- 👤 **Kullanıcı Yönetimi:** JWT tabanlı kimlik doğrulama
-- 📱 **Responsive Design:** Mobil ve masaüstü uyumlu arayüz
-- 🎨 **Modern UI:** Tailwind CSS ile tasarlanmış kullanıcı dostu arayüz
+## 🎯 Overview
 
-## 🛠 Teknoloji Stack
+SIEA (Smart Invoice Entry Automation) is an intelligent invoice processing system that enables users to scan or photograph invoices for automatic data extraction. Built with modern web technologies and AI-powered OCR, it automatically extracts invoice data and stores it securely with enterprise-grade encryption.
+
+## ✨ Features
+
+- 📷 **Camera Integration**: Real-time invoice scanning with web camera
+- 📁 **File Upload**: Drag & drop invoice photo upload
+- 🤖 **AI-Powered OCR**: Google Gemini 1.5 Flash for intelligent data extraction
+- 🗄️ **Secure Storage**: PostgreSQL database with AES-256 encryption
+- 📊 **Excel Export**: Styled Excel file generation (.xlsx)
+- 🔒 **Data Security**: 5-year automatic data retention policy
+- 👤 **User Management**: JWT-based authentication system
+- 📱 **Responsive Design**: Mobile and desktop compatible interface
+- 🎨 **Modern UI**: User-friendly interface designed with Tailwind CSS
+- 🌐 **Multi-language**: Turkish and English invoice support
+- 🐳 **Containerized**: Full Docker support for easy deployment
+
+## 🛠 Technology Stack
 
 ### Backend
-- **Framework:** FastAPI (Python)
-- **Database:** PostgreSQL
-- **ORM:** SQLAlchemy
-- **Authentication:** JWT + bcrypt
-- **AI OCR:** Google Gemini 1.5 Flash
-- **Excel:** pandas + openpyxl + xlsxwriter
-- **Encryption:** cryptography (Fernet)
+- **Framework**: FastAPI (Python)
+- **Database**: PostgreSQL
+- **ORM**: SQLAlchemy
+- **Authentication**: JWT + bcrypt
+- **AI OCR**: Google Gemini 1.5 Flash
+- **Excel Export**: pandas + openpyxl + xlsxwriter
+- **Encryption**: cryptography (Fernet)
 
 ### Frontend
-- **Framework:** React.js 18
-- **Routing:** React Router DOM
-- **Styling:** Tailwind CSS
-- **Icons:** Lucide React
-- **Camera:** react-webcam
-- **File Upload:** react-dropzone
-- **Notifications:** react-toastify
-- **HTTP Client:** Axios
+- **Framework**: React.js 18
+- **Routing**: React Router DOM
+- **Styling**: Tailwind CSS
+- **Icons**: Lucide React
+- **Camera**: react-webcam
+- **File Upload**: react-dropzone
+- **Notifications**: react-toastify
+- **HTTP Client**: Axios
 
 ### DevOps & Deployment
-- **Containerization:** Docker + Docker Compose
-- **Web Server:** Nginx
-- **SSL:** Let's Encrypt
-- **Database Migration:** Custom migration system
+- **Containerization**: Docker & Docker Compose
+- **Web Server**: Nginx
+- **SSL**: Let's Encrypt ready
+- **Database Migration**: Custom migration system
 
-## 📱 Sayfa Yapısı
-1. **🔐 Giriş/Kayıt:** Kullanıcı kimlik doğrulama
-2. **📷 Tarama Sayfası:** Kamera/dosya yükleme ile fatura tarama
-3. **📋 İşlem Görmüş Faturalar:** Taranan faturaların listesi, arama ve Excel export
-4. **👤 Profil Sayfası:** Kullanıcı hesap bilgileri ve ayarları
+## 📋 System Requirements
 
-## 🚀 Hızlı Kurulum
+- **Python**: 3.8+
+- **Node.js**: 16+
+- **PostgreSQL**: 12+
+- **Google Gemini API Key**
 
-### Otomatik Kurulum (Önerilen)
+## 🚀 Quick Setup
+
+### Option 1: Automatic Setup (Recommended)
+
 ```bash
-# Projeyi klonlayın
-git clone <repository-url>
+# Clone the repository
+git clone https://github.com/yourusername/SIEA.git
 cd SIEA
 
-# Otomatik kurulum scriptini çalıştırın
+# Run automatic setup
 python setup.py
 ```
 
-### Manuel Kurulum
+### Option 2: Manual Setup
 
-#### Gereksinimler
-- Python 3.8+
-- Node.js 16+
-- PostgreSQL 12+
-- Tesseract OCR
+#### 1. Environment Configuration
 
-#### 1. Backend Kurulumu
 ```bash
-cd backend
+# Copy environment template
+cp backend/env_example.txt backend/.env
 
-# Virtual environment oluştur
-python -m venv venv
-
-# Virtual environment'ı aktif et
-# Windows:
-venv\Scripts\activate
-# Linux/Mac:
-source venv/bin/activate
-
-# Bağımlılıkları yükle
-pip install -r requirements.txt
-
-# Environment dosyasını oluştur
-cp env_example.txt .env
-# .env dosyasını düzenleyin
-
-# Veritabanı migration'ını çalıştır
-python database/migrations.py
-
-# Sunucuyu başlat
-uvicorn main:app --reload
+# Generate secure keys
+python -c "import secrets; print('SECRET_KEY=' + secrets.token_urlsafe(32))"
+python -c "from cryptography.fernet import Fernet; print('ENCRYPTION_KEY=' + Fernet.generate_key().decode())"
 ```
 
-#### 2. Frontend Kurulumu
+Update `backend/.env` with your values:
+```env
+DATABASE_URL=postgresql://username:password@localhost:5432/siea_db
+SECRET_KEY=your-generated-secret-key
+ENCRYPTION_KEY=your-generated-encryption-key
+GEMINI_API_KEY=your-gemini-api-key
+MAX_FILE_SIZE=10485760
+ALLOWED_EXTENSIONS=.jpg,.jpeg,.png,.pdf
+```
+
+#### 2. Database Setup
+
+```bash
+# Install PostgreSQL and create database
+createdb siea_db
+
+# Run migrations
+cd backend
+python database/migrations.py
+```
+
+#### 3. Backend Setup
+
+```bash
+cd backend
+pip install -r requirements.txt
+python main.py
+```
+
+#### 4. Frontend Setup
+
 ```bash
 cd frontend
-
-# Bağımlılıkları yükle
 npm install
-
-# Development sunucusunu başlat
 npm start
 ```
 
-#### 3. Veritabanı Kurulumu
-```sql
--- PostgreSQL'e bağlanın ve veritabanını oluşturun
-CREATE DATABASE siea_db;
-CREATE USER siea_user WITH PASSWORD 'your_password';
-GRANT ALL PRIVILEGES ON DATABASE siea_db TO siea_user;
-```
+## 🐳 Docker Setup
 
-## 🐳 Docker ile Kurulum
+### Development Environment
 
-### Development Ortamı
 ```bash
-# Development servislerini başlat
-docker-compose -f docker-compose.dev.yml up -d
-
-# Backend ve frontend'i manuel başlatın
-cd backend && python main.py
-cd frontend && npm start
+docker-compose -f docker-compose.dev.yml up --build
 ```
 
-### Production Ortamı
+### Production Environment
+
 ```bash
-# Production deployment
-./scripts/deploy-production.sh your-domain.com admin@your-domain.com
+docker-compose up --build
 ```
 
-## 📖 API Dokümantasyonu
-Backend çalıştıktan sonra API dokümantasyonuna erişebilirsiniz:
-- **Swagger UI:** http://localhost:8000/docs
-- **ReDoc:** http://localhost:8000/redoc
+## 📚 API Documentation
 
-### Ana API Endpoint'leri
-- `POST /auth/register` - Kullanıcı kaydı
-- `POST /auth/login` - Kullanıcı girişi
-- `POST /invoices/upload` - Fatura yükleme ve OCR işlemi
-- `GET /invoices` - Kullanıcının faturalarını listele
-- `GET /invoices/export/excel` - Excel export
-- `GET /user/profile` - Kullanıcı profili
+Once the backend is running, visit:
+- **Swagger UI**: http://localhost:8000/docs
+- **ReDoc**: http://localhost:8000/redoc
 
-## 🔧 Konfigürasyon
+### Key Endpoints
 
-### Environment Variables (.env)
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| POST | `/auth/register` | User registration |
+| POST | `/auth/login` | User login |
+| POST | `/invoices/upload` | Upload and process invoice |
+| GET | `/invoices` | Get user's invoices |
+| GET | `/invoices/export/excel` | Export invoices to Excel |
+| POST | `/debug/ocr` | Debug OCR processing |
+
+## 🔧 Configuration
+
+### Environment Variables
+
+| Variable | Description | Default |
+|----------|-------------|---------|
+| `DATABASE_URL` | PostgreSQL connection string | - |
+| `SECRET_KEY` | JWT secret key | - |
+| `ENCRYPTION_KEY` | Fernet encryption key | - |
+| `GEMINI_API_KEY` | Google Gemini API key | - |
+| `MAX_FILE_SIZE` | Maximum upload size (bytes) | 10485760 |
+| `ALLOWED_EXTENSIONS` | Allowed file extensions | .jpg,.jpeg,.png,.pdf |
+
+### Getting Gemini API Key
+
+1. Visit [Google AI Studio](https://makersuite.google.com/app/apikey)
+2. Create a new API key
+3. Add it to your `.env` file
+
+## 🏗️ Project Structure
+
+```
+SIEA/
+├── backend/                 # FastAPI backend
+│   ├── database/           # Database models and migrations
+│   ├── schemas/            # Pydantic schemas
+│   ├── services/           # Business logic services
+│   ├── main.py            # FastAPI application
+│   └── requirements.txt   # Python dependencies
+├── frontend/               # React frontend
+│   ├── public/            # Static files
+│   ├── src/               # React source code
+│   │   ├── components/    # Reusable components
+│   │   ├── contexts/      # React contexts
+│   │   ├── pages/         # Page components
+│   │   └── App.js         # Main App component
+│   └── package.json       # Node.js dependencies
+├── scripts/               # Deployment scripts
+├── docker-compose.yml     # Production Docker setup
+├── docker-compose.dev.yml # Development Docker setup
+└── README.md             # This file
+```
+
+## 🔒 Security Features
+
+- **Data Encryption**: All sensitive data encrypted with Fernet (AES-256)
+- **JWT Authentication**: Secure token-based authentication
+- **Password Hashing**: bcrypt with salt
+- **SQL Injection Protection**: SQLAlchemy ORM
+- **CORS Protection**: Configurable CORS settings
+- **File Validation**: Type and size validation
+- **Data Retention**: Automatic cleanup after 5 years
+
+## 🤖 OCR Processing
+
+### Supported Invoice Data
+
+- **Company Name**: Extracted from the top of the invoice
+- **Invoice Number**: Found after "FATURA NO:", "INVOICE NO:", etc.
+- **Invoice Date**: Date in DD.MM.YYYY or DD/MM/YYYY format
+- **Total Amount**: Total amount without currency symbol
+- **Tax Amount**: VAT/KDV amount without currency symbol
+
+### AI Model
+
+- **Model**: Google Gemini 1.5 Flash
+- **Languages**: Turkish and English
+- **Accuracy**: High accuracy with structured prompts
+- **Fallback**: Regex-based extraction for non-JSON responses
+
+## 📊 Data Model
+
+### User
+- ID, email, full name, password hash
+- Creation and update timestamps
+- Active status
+
+### Invoice
+- ID, filename, processing timestamp
+- Extracted data (encrypted JSON)
+- Company name, invoice number, date
+- Total amount, tax amount
+- User relationship
+- Expiration date (5 years)
+
+## 🚀 Performance Optimizations
+
+- **Database Indexing**: Optimized queries with proper indexes
+- **Image Processing**: Efficient image handling
+- **Lazy Loading**: Frontend components loaded on demand
+- **Code Splitting**: Optimized bundle sizes
+- **Caching**: Session caching with potential Redis integration
+
+## 🧪 Testing
+
 ```bash
-# Database
-DATABASE_URL=postgresql://username:password@localhost:5432/siea_db
-
-# Security
-SECRET_KEY=your-secret-key
-ENCRYPTION_KEY=your-encryption-key
-
-# OCR
-TESSERACT_CMD=tesseract  # Windows: C:\Program Files\Tesseract-OCR\tesseract.exe
-
-# File Upload
-MAX_FILE_SIZE=10485760  # 10MB
-ALLOWED_EXTENSIONS=jpg,jpeg,png,pdf
-```
-
-## 🛡 Güvenlik Özellikleri
-- **Veri Şifreleme:** Tüm fatura verileri AES-256 ile şifrelenir
-- **JWT Authentication:** Güvenli kullanıcı oturumları
-- **Password Hashing:** bcrypt ile şifre hashleme
-- **SQL Injection Protection:** SQLAlchemy ORM koruması
-- **CORS Protection:** Yapılandırılabilir CORS politikaları
-- **File Upload Security:** Dosya tipi ve boyut kontrolü
-- **Automatic Data Cleanup:** 5 yıllık otomatik veri silme
-
-## 📊 Veri Modeli
-```
-Users
-├── id (Primary Key)
-├── email (Unique)
-├── full_name
-├── hashed_password
-└── created_at
-
-Invoices
-├── id (Primary Key)
-├── user_id (Foreign Key)
-├── filename
-├── ocr_data (Encrypted JSON)
-├── invoice_number
-├── company_name
-├── total_amount
-└── expires_at (5 years)
-
-Audit_Logs
-├── id (Primary Key)
-├── user_id (Foreign Key)
-├── action
-├── resource_type
-└── created_at
-```
-
-## 🔄 OCR İşlemi Detayları
-1. **Görüntü Ön İşleme:** Gri tonlama, gürültü azaltma, kontrast artırma
-2. **OCR Çıkarma:** Tesseract ile Türkçe/İngilizce metin tanıma
-3. **Veri Parsing:** Regex ile fatura bilgilerini çıkarma:
-   - Fatura numarası
-   - Şirket adı
-   - Tarih bilgisi
-   - Toplam tutar
-   - KDV tutarı
-4. **Doğrulama:** Çıkarılan verilerin tutarlılık kontrolü
-
-## 📈 Performans Optimizasyonları
-- **Database Indexing:** Kritik alanlarda indeks kullanımı
-- **Image Processing:** Optimize edilmiş görüntü işleme
-- **Caching:** Redis ile oturum cache'leme
-- **Lazy Loading:** Frontend'de bileşen lazy loading
-- **Code Splitting:** React bundle optimizasyonu
-
-## 🧪 Test Etme
-```bash
-# Backend testleri
+# Backend tests
 cd backend
-pytest
+python -m pytest
 
-# Frontend testleri
+# Frontend tests
 cd frontend
 npm test
-
-# Integration testleri
-npm run test:integration
 ```
 
-## 📦 Deployment Seçenekleri
+## 📦 Deployment
 
-### 1. Traditional Server
-- Nginx + Gunicorn/Uvicorn
-- PostgreSQL
-- SSL sertifikası (Let's Encrypt)
+### Production Deployment
 
-### 2. Docker Container
-- Docker Compose ile multi-container setup
-- Otomatik SSL yenileme
-- Health check'ler
+1. **Server Setup**:
+   ```bash
+   # Install Docker and Docker Compose
+   curl -fsSL https://get.docker.com -o get-docker.sh
+   sh get-docker.sh
+   ```
 
-### 3. Cloud Platforms
-- **Heroku:** Kolay deployment
-- **AWS:** EC2 + RDS + S3
-- **DigitalOcean:** Droplet + Managed Database
-- **Google Cloud:** Compute Engine + Cloud SQL
+2. **SSL Configuration**:
+   ```bash
+   # Update nginx.conf with your domain
+   # Configure Let's Encrypt
+   ```
 
-## 🔍 Troubleshooting
+3. **Deploy**:
+   ```bash
+   ./scripts/deploy-production.sh
+   ```
 
-### Yaygın Sorunlar ve Çözümleri
+### Cloud Deployment Options
 
-#### OCR Çalışmıyor
+- **Heroku**: Use provided Procfile
+- **Railway**: Direct deployment support
+- **AWS**: ECS with provided Docker images
+- **DigitalOcean**: App Platform compatible
+
+## 🔧 Troubleshooting
+
+### Common Issues
+
+1. **Gemini API Errors**:
+   - Verify API key is correct
+   - Check API quotas and limits
+   - Ensure proper image format
+
+2. **Database Connection**:
+   - Verify PostgreSQL is running
+   - Check connection string format
+   - Ensure database exists
+
+3. **Frontend Build Issues**:
+   - Clear node_modules: `rm -rf node_modules && npm install`
+   - Check Node.js version compatibility
+
+### Debug Mode
+
+Enable debug logging by setting environment variable:
 ```bash
-# Tesseract kurulumu kontrol et
-tesseract --version
-
-# Türkçe dil paketi yükle
-sudo apt-get install tesseract-ocr-tur  # Linux
+export DEBUG=true
 ```
 
-#### Database Connection Error
-```bash
-# PostgreSQL servisini kontrol et
-sudo systemctl status postgresql
+## 🗺️ Roadmap
 
-# Connection string'i kontrol et
-psql -d "postgresql://username:password@localhost:5432/siea_db"
-```
+- [ ] **Multi-language Support**: Additional language support
+- [ ] **Batch Processing**: Multiple invoice upload
+- [ ] **API Integration**: Third-party accounting software
+- [ ] **Mobile App**: React Native mobile application
+- [ ] **Advanced Analytics**: Invoice analytics dashboard
+- [ ] **Cloud Storage**: AWS S3 integration
+- [ ] **OCR Improvements**: Custom model training
 
-#### Frontend Build Hatası
-```bash
-# Node modules'ü temizle
-rm -rf node_modules package-lock.json
-npm install
-```
+## 🤝 Contributing
 
-## 📋 Roadmap
-- [ ] **v1.1:** Çoklu dil desteği
-- [ ] **v1.2:** Mobil uygulama (React Native)
-- [ ] **v1.3:** AI tabanlı fatura kategorilendirme
-- [ ] **v1.4:** API entegrasyonları (SAP, Logo vs.)
-- [ ] **v1.5:** Gerçek zamanlı dashboard
-- [ ] **v2.0:** Microservices mimarisi
+1. Fork the repository
+2. Create your feature branch (`git checkout -b feature/AmazingFeature`)
+3. Commit your changes (`git commit -m 'Add some AmazingFeature'`)
+4. Push to the branch (`git push origin feature/AmazingFeature`)
+5. Open a Pull Request
 
-## 🤝 Katkıda Bulunma
-1. Fork edin
-2. Feature branch oluşturun (`git checkout -b feature/amazing-feature`)
-3. Commit edin (`git commit -m 'Add amazing feature'`)
-4. Push edin (`git push origin feature/amazing-feature`)
-5. Pull Request oluşturun
+### Development Guidelines
 
-## 📄 Lisans
-Bu proje MIT lisansı altında lisanslanmıştır. Detaylar için `LICENSE` dosyasına bakınız.
+- Follow PEP 8 for Python code
+- Use ESLint for JavaScript code
+- Write tests for new features
+- Update documentation as needed
 
-## 📞 Destek
-- **Issues:** GitHub Issues kullanın
-- **Documentation:** Wiki sayfalarını kontrol edin
-- **Email:** support@siea.local (geliştirme amaçlı)
+## 📄 License
 
-## 🙏 Teşekkürler
-- **Tesseract OCR:** Google tarafından geliştirilen OCR motoru
-- **OpenCV:** Bilgisayar görme kütüphanesi
-- **FastAPI:** Modern Python web framework
-- **React:** Facebook tarafından geliştirilen UI kütüphanesi
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+
+## 🆘 Support
+
+- **Documentation**: Check this README and code comments
+- **Issues**: Open an issue on GitHub
+- **Discussions**: Use GitHub Discussions for questions
+
+## 🙏 Acknowledgments
+
+- **Google Gemini**: AI-powered OCR capabilities
+- **FastAPI**: High-performance Python web framework
+- **React**: Frontend user interface library
+- **Tailwind CSS**: Utility-first CSS framework
+- **PostgreSQL**: Robust database system
 
 ---
 
-**SIEA** - Smart Invoice Entry Automation 🚀
+**Made with ❤️ for efficient invoice processing**
