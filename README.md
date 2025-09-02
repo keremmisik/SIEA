@@ -5,25 +5,25 @@
 [![React](https://img.shields.io/badge/React-18+-61DAFB.svg)](https://reactjs.org/)
 [![FastAPI](https://img.shields.io/badge/FastAPI-0.104+-009688.svg)](https://fastapi.tiangolo.com/)
 
-## 🎯 Overview
+## Overview
 
 SIEA (Smart Invoice Entry Automation) is an intelligent invoice processing system that enables users to scan or photograph invoices for automatic data extraction. Built with modern web technologies and AI-powered OCR, it automatically extracts invoice data and stores it securely with enterprise-grade encryption.
 
-## ✨ Features
+## Features
 
-- 📷 **Camera Integration**: Real-time invoice scanning with web camera
-- 📁 **File Upload**: Drag & drop invoice photo upload
-- 🤖 **AI-Powered OCR**: Google Gemini 1.5 Flash for intelligent data extraction
-- 🗄️ **Secure Storage**: PostgreSQL database with AES-256 encryption
-- 📊 **Excel Export**: Styled Excel file generation (.xlsx)
-- 🔒 **Data Security**: 5-year automatic data retention policy
-- 👤 **User Management**: JWT-based authentication system
-- 📱 **Responsive Design**: Mobile and desktop compatible interface
-- 🎨 **Modern UI**: User-friendly interface designed with Tailwind CSS
-- 🌐 **Multi-language**: Turkish and English invoice support
-- 🐳 **Containerized**: Full Docker support for easy deployment
+-  **Camera Integration**: Real-time invoice scanning with web camera
+-  **File Upload**: Drag & drop invoice photo upload
+-  **AI-Powered OCR**: Google Gemini 1.5 Flash for intelligent data extraction
+-  **Secure Storage**: PostgreSQL database with AES-256 encryption
+-  **Excel Export**: Styled Excel file generation (.xlsx)
+-  **Data Security**: 5-year automatic data retention policy
+-  **User Management**: JWT-based authentication system
+-  **Responsive Design**: Mobile and desktop compatible interface
+-  **Modern UI**: User-friendly interface designed with Tailwind CSS
+-  **Multi-language**: Turkish and English invoice support
+-  **Containerized**: Full Docker support for easy deployment
 
-## 🛠 Technology Stack
+## Technology Stack
 
 ### Backend
 - **Framework**: FastAPI (Python)
@@ -50,14 +50,14 @@ SIEA (Smart Invoice Entry Automation) is an intelligent invoice processing syste
 - **SSL**: Let's Encrypt ready
 - **Database Migration**: Custom migration system
 
-## 📋 System Requirements
+## System Requirements
 
 - **Python**: 3.8+
 - **Node.js**: 16+
 - **PostgreSQL**: 12+
 - **Google Gemini API Key**
 
-## 🚀 Quick Setup
+## Quick Setup
 
 ### Option 1: Automatic Setup (Recommended)
 
@@ -120,7 +120,7 @@ npm install
 npm start
 ```
 
-## 🐳 Docker Setup
+## Docker Setup
 
 ### Development Environment
 
@@ -170,7 +170,7 @@ Once the backend is running, visit:
 2. Create a new API key
 3. Add it to your `.env` file
 
-## 🏗️ Project Structure
+##  Project Structure
 
 ```
 SIEA/
@@ -194,7 +194,7 @@ SIEA/
 └── README.md             # This file
 ```
 
-## 🔒 Security Features
+## Security Features
 
 - **Data Encryption**: All sensitive data encrypted with Fernet (AES-256)
 - **JWT Authentication**: Secure token-based authentication
@@ -204,7 +204,7 @@ SIEA/
 - **File Validation**: Type and size validation
 - **Data Retention**: Automatic cleanup after 5 years
 
-## 🤖 OCR Processing
+## OCR Processing
 
 ### Supported Invoice Data
 
@@ -221,7 +221,7 @@ SIEA/
 - **Accuracy**: High accuracy with structured prompts
 - **Fallback**: Regex-based extraction for non-JSON responses
 
-## 📊 Data Model
+## Data Model
 
 ### User
 - ID, email, full name, password hash
@@ -236,7 +236,7 @@ SIEA/
 - User relationship
 - Expiration date (5 years)
 
-## 🚀 Performance Optimizations
+## Performance Optimizations
 
 - **Database Indexing**: Optimized queries with proper indexes
 - **Image Processing**: Efficient image handling
@@ -244,7 +244,7 @@ SIEA/
 - **Code Splitting**: Optimized bundle sizes
 - **Caching**: Session caching with potential Redis integration
 
-## 🧪 Testing
+## Testing
 
 ```bash
 # Backend tests
@@ -256,7 +256,7 @@ cd frontend
 npm test
 ```
 
-## 📦 Deployment
+## Deployment
 
 ### Production Deployment
 
@@ -285,7 +285,7 @@ npm test
 - **AWS**: ECS with provided Docker images
 - **DigitalOcean**: App Platform compatible
 
-## 🔧 Troubleshooting
+## Troubleshooting
 
 ### Common Issues
 
@@ -310,7 +310,7 @@ Enable debug logging by setting environment variable:
 export DEBUG=true
 ```
 
-## 🗺️ Roadmap
+##  Roadmap
 
 - [ ] **Multi-language Support**: Additional language support
 - [ ] **Batch Processing**: Multiple invoice upload
@@ -320,7 +320,7 @@ export DEBUG=true
 - [ ] **Cloud Storage**: AWS S3 integration
 - [ ] **OCR Improvements**: Custom model training
 
-## 🤝 Contributing
+## Contributing
 
 1. Fork the repository
 2. Create your feature branch (`git checkout -b feature/AmazingFeature`)
@@ -335,17 +335,17 @@ export DEBUG=true
 - Write tests for new features
 - Update documentation as needed
 
-## 📄 License
+## License
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
-## 🆘 Support
+## Support
 
 - **Documentation**: Check this README and code comments
 - **Issues**: Open an issue on GitHub
 - **Discussions**: Use GitHub Discussions for questions
 
-## 🙏 Acknowledgments
+## Acknowledgments
 
 - **Google Gemini**: AI-powered OCR capabilities
 - **FastAPI**: High-performance Python web framework
@@ -354,5 +354,3 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 - **PostgreSQL**: Robust database system
 
 ---
-
-**Made with ❤️ for efficient invoice processing**
