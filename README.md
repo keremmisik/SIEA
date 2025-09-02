@@ -134,7 +134,7 @@ docker-compose -f docker-compose.dev.yml up --build
 docker-compose up --build
 ```
 
-## 📚 API Documentation
+## API Documentation
 
 Once the backend is running, visit:
 - **Swagger UI**: http://localhost:8000/docs
