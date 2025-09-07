@@ -64,7 +64,26 @@ KURALLAR:
 3. TARİH: Fatura tarihi (DD.MM.YYYY veya DD/MM/YYYY formatında)
 4. TOPLAM TUTAR: "TOPLAM", "GENEL TOPLAM" yazısının yanındaki tutar (sadece sayı+virgül/nokta, TL olmadan)
 5. KDV TUTARI: "KDV", "K.D.V" yazısının yanındaki tutar (sadece sayı+virgül/nokta, TL olmadan)
-6. KDV ORANI: "%18", "%20", "18%", "20%" gibi KDV oranını gösteren değer (sadece sayı, % işareti olmadan)
+6. KDV ORANI: KDV oranını bulmak için şu alanları dikkatli incele:
+   - "%18", "%20", "18%", "20%" gibi açık oran yazıları
+   - "KDV %18", "KDV %20", "K.D.V %18" gibi KDV yanındaki oranlar
+   - Tablolarda KDV sütununda yazılı oranlar
+   - "18 KDV", "20 KDV" gibi sayı+KDV formatları
+   - Fatura detaylarında ürün bazında yazılı KDV oranları
+   - Türkiye'de yaygın KDV oranları: 0, 1, 8, 18, 20
+   - Sadece sayıyı döndür (% işareti olmadan)
+
+ÖNEMLİ KDV ORANI DETAYLARI:
+- Eğer birden fazla KDV oranı varsa, en yüksek oranı al
+- Eğer KDV oranı bulunamazsa ama KDV tutarı varsa, hesapla: (KDV tutarı / (toplam tutar - KDV tutarı)) * 100
+- KDV oranı genellikle 0, 1, 8, 18 veya 20 olur
+- Tablolarda, sütun başlıklarında veya satır sonlarında olabilir
+
+ÖNEMLİ SAYI FORMATLAMA KURALLARI:
+- Binlik ayırıcı: nokta (.) - 1.000, 15.750
+- Ondalık ayırıcı: virgül (,) - 1.000,50, 15.750,25
+- Para birimi sembolleri kullanma (TL, ₺, $)
+- Sadece sayıları döndür
 
 Bulunamayan bilgiler için null kullan.
 Sadece JSON yanıtı ver, başka açıklama ekleme.
@@ -85,6 +104,20 @@ Sadece JSON yanıtı ver, başka açıklama ekleme.
                     json_text = json_text.replace('```', '').strip()
                 
                 extracted_data = json.loads(json_text)
+                
+                # KDV oranı için ek kontrol - JSON'da null ise fallback kullan
+                if not extracted_data.get("tax_rate"):
+                    extracted_data["tax_rate"] = self.extract_kdv_rate_from_text(response.text)
+                    
+                    # Eğer hala bulunamadıysa, KDV tutarı ve toplam tutardan hesapla
+                    if not extracted_data["tax_rate"] and extracted_data.get("tax_amount") and extracted_data.get("total_amount"):
+                        calculated_rate = self.calculate_kdv_rate_from_amounts(
+                            extracted_data["tax_amount"], 
+                            extracted_data["total_amount"]
+                        )
+                        if calculated_rate:
+                            extracted_data["tax_rate"] = calculated_rate
+                            
             except json.JSONDecodeError as e:
                 print(f"JSON parse error: {e}")
                 # Fallback: regex ile çıkar
@@ -95,6 +128,12 @@ Sadece JSON yanıtı ver, başka açıklama ekleme.
             
             print(f"✅ Gemini Extracted Data: {extracted_data}")
             print(f"📊 Extraction Score: {score}")
+            
+            # KDV oranı özel log
+            if extracted_data.get("tax_rate"):
+                print(f"🎯 KDV Oranı Bulundu: {extracted_data['tax_rate']}%")
+            else:
+                print(f"⚠️ KDV Oranı Bulunamadı")
             
             return {
                 "raw_text": response.text,
@@ -138,7 +177,97 @@ Sadece JSON yanıtı ver, başka açıklama ekleme.
                 if value and value.lower() != 'null':
                     extracted[key] = value
         
+        # KDV oranı için özel fallback - eğer JSON'dan çıkarılamadıysa
+        if not extracted["tax_rate"]:
+            extracted["tax_rate"] = self.extract_kdv_rate_from_text(text)
+            
+            # Eğer hala bulunamadıysa, KDV tutarı ve toplam tutardan hesapla
+            if not extracted["tax_rate"] and extracted["tax_amount"] and extracted["total_amount"]:
+                calculated_rate = self.calculate_kdv_rate_from_amounts(
+                    extracted["tax_amount"], 
+                    extracted["total_amount"]
+                )
+                if calculated_rate:
+                    extracted["tax_rate"] = calculated_rate
+        
         return extracted
+    
+    def extract_kdv_rate_from_text(self, text: str) -> Optional[str]:
+        """
+        Metinden KDV oranını çıkarmak için gelişmiş regex pattern'leri
+        """
+        # KDV oranı için çeşitli pattern'ler
+        kdv_patterns = [
+            # Açık oran yazıları
+            r'%(\d{1,2})',  # %18, %20
+            r'(\d{1,2})%',  # 18%, 20%
+            
+            # KDV ile birlikte
+            r'KDV\s*[:\-]?\s*%?(\d{1,2})',  # KDV: 18, KDV %18, KDV-18
+            r'K\.D\.V\s*[:\-]?\s*%?(\d{1,2})',  # K.D.V: 18
+            
+            # Sayı + KDV formatı
+            r'(\d{1,2})\s+KDV',  # 18 KDV
+            r'(\d{1,2})\s+K\.D\.V',  # 18 K.D.V
+            
+            # Tablo formatları
+            r'KDV\s*\(%?(\d{1,2})\)',  # KDV (%18)
+            r'(\d{1,2})\s*KDV\s*Oranı',  # 18 KDV Oranı
+            
+            # Yaygın Türk KDV oranları
+            r'\b(0|1|8|18|20)\b(?=.*KDV)',  # 0, 1, 8, 18, 20 (KDV kelimesi yakınında)
+        ]
+        
+        found_rates = []
+        
+        for pattern in kdv_patterns:
+            matches = re.findall(pattern, text, re.IGNORECASE)
+            for match in matches:
+                rate = str(match).strip()
+                # Geçerli KDV oranı kontrolü (0, 1, 8, 18, 20)
+                if rate in ['0', '1', '8', '18', '20']:
+                    found_rates.append(int(rate))
+        
+        if found_rates:
+            # En yüksek oranı döndür (genellikle ana KDV oranı)
+            return str(max(found_rates))
+        
+        return None
+    
+    def calculate_kdv_rate_from_amounts(self, tax_amount: str, total_amount: str) -> Optional[str]:
+        """
+        KDV tutarı ve toplam tutardan KDV oranını hesaplar
+        """
+        try:
+            # Tutarları temizle ve sayıya çevir
+            tax_clean = re.sub(r'[^\d,.]', '', str(tax_amount))
+            total_clean = re.sub(r'[^\d,.]', '', str(total_amount))
+            
+            # Virgülü noktaya çevir
+            tax_clean = tax_clean.replace(',', '.')
+            total_clean = total_clean.replace(',', '.')
+            
+            tax_value = float(tax_clean)
+            total_value = float(total_clean)
+            
+            if tax_value > 0 and total_value > 0:
+                # KDV oranı = (KDV tutarı / (Toplam tutar - KDV tutarı)) * 100
+                net_amount = total_value - tax_value
+                if net_amount > 0:
+                    calculated_rate = (tax_value / net_amount) * 100
+                    
+                    # Yaygın KDV oranlarına yuvarla (0, 1, 8, 18, 20)
+                    common_rates = [0, 1, 8, 18, 20]
+                    closest_rate = min(common_rates, key=lambda x: abs(x - calculated_rate))
+                    
+                    # Eğer hesaplanan oran yaygın oranlardan birine yakınsa kabul et
+                    if abs(closest_rate - calculated_rate) < 1:  # 1% tolerans
+                        return str(closest_rate)
+            
+        except (ValueError, ZeroDivisionError):
+            pass
+        
+        return None
     
     def calculate_extraction_score(self, extracted_data: Dict[str, Any]) -> Dict[str, Any]:
         """
