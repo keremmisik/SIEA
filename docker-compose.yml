@@ -1,0 +1,69 @@
+version: '3.8'
+
+services:
+  # PostgreSQL Database
+  postgres:
+    image: postgres:15-alpine
+    container_name: siea-postgres
+    environment:
+      POSTGRES_DB: siea_db
+      POSTGRES_USER: siea_user
+      POSTGRES_PASSWORD: siea_password
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./init.sql:/docker-entrypoint-initdb.d/init.sql
+    ports:
+      - "5432:5432"
+    networks:
+      - siea-network
+    restart: unless-stopped
+
+  # Backend API
+  backend:
+    build: ./backend
+    container_name: siea-backend
+    environment:
+      DATABASE_URL: postgresql://siea_user:siea_password@postgres:5432/siea_db
+      SECRET_KEY: your-production-secret-key-change-this
+      ENCRYPTION_KEY: your-production-encryption-key-change-this
+    volumes:
+      - ./backend:/app
+      - uploaded_files:/app/uploads
+    ports:
+      - "8000:8000"
+    depends_on:
+      - postgres
+    networks:
+      - siea-network
+    restart: unless-stopped
+    command: ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000", "--reload"]
+
+  # Frontend
+  frontend:
+    build: ./frontend
+    container_name: siea-frontend
+    ports:
+      - "3000:80"
+    depends_on:
+      - backend
+    networks:
+      - siea-network
+    restart: unless-stopped
+
+  # Redis (Session storage - opsiyonel)
+  redis:
+    image: redis:7-alpine
+    container_name: siea-redis
+    ports:
+      - "6379:6379"
+    networks:
+      - siea-network
+    restart: unless-stopped
+
+volumes:
+  postgres_data:
+  uploaded_files:
+
+networks:
+  siea-network:
+    driver: bridge
