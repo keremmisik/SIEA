@@ -27,9 +27,8 @@ class ExcelService:
                     'Fatura Tarihi': invoice.invoice_date.strftime('%d.%m.%Y') if invoice.invoice_date else extracted_data.get('invoice_date', ''),
                     'Toplam Tutar': invoice.total_amount or extracted_data.get('total_amount', ''),
                     'KDV Tutarı': invoice.tax_amount or extracted_data.get('tax_amount', ''),
-                    'Dosya Adı': invoice.filename,
-                    'İşlem Tarihi': invoice.processed_at.strftime('%d.%m.%Y %H:%M') if invoice.processed_at else '',
-                    'Oluşturma Tarihi': invoice.created_at.strftime('%d.%m.%Y %H:%M') if invoice.created_at else ''
+                    'KDV Oranı': f"%{invoice.tax_rate}" if invoice.tax_rate else (f"%{extracted_data.get('tax_rate', '')}" if extracted_data.get('tax_rate') else ''),
+                    'İşlem Tarihi': invoice.processed_at.strftime('%d.%m.%Y %H:%M') if invoice.processed_at else ''
                 }
                 data.append(row)
             
@@ -54,7 +53,7 @@ class ExcelService:
         ws['A1'] = title
         ws['A1'].font = Font(size=16, bold=True)
         ws['A1'].alignment = Alignment(horizontal='center')
-        ws.merge_cells('A1:H1')
+        ws.merge_cells('A1:G1')
         
         # İstatistikler ekle
         ws['A3'] = f"Toplam Fatura Sayısı: {len(invoices)}"
@@ -65,7 +64,7 @@ class ExcelService:
             ws.append(r)
         
         # Başlık satırını stillendir
-        header_row = 5
+        header_row = 4
         header_fill = PatternFill(start_color="366092", end_color="366092", fill_type="solid")
         header_font = Font(color="FFFFFF", bold=True)
         
@@ -82,9 +81,8 @@ class ExcelService:
             'C': 12,  # Fatura Tarihi
             'D': 15,  # Toplam Tutar
             'E': 12,  # KDV Tutarı
-            'F': 25,  # Dosya Adı
-            'G': 18,  # İşlem Tarihi
-            'H': 18   # Oluşturma Tarihi
+            'F': 12,  # KDV Oranı
+            'G': 18   # İşlem Tarihi
         }
         
         for col, width in column_widths.items():

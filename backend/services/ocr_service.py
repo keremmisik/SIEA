@@ -74,10 +74,12 @@ KURALLAR:
    - Sadece sayıyı döndür (% işareti olmadan)
 
 ÖNEMLİ KDV ORANI DETAYLARI:
-- Eğer birden fazla KDV oranı varsa, en yüksek oranı al
+- Eğer birden fazla KDV oranı varsa, TÜM KDV oranlarını topla (örn: %1 + %10 = %11)
+- Farklı ürünlerde farklı KDV oranları olabilir, bunları toplam KDV oranı olarak hesapla
 - Eğer KDV oranı bulunamazsa ama KDV tutarı varsa, hesapla: (KDV tutarı / (toplam tutar - KDV tutarı)) * 100
 - KDV oranı genellikle 0, 1, 8, 18 veya 20 olur
 - Tablolarda, sütun başlıklarında veya satır sonlarında olabilir
+- Örnek: Faturada %1 KDV'li ürünler ve %10 KDV'li ürünler varsa, toplam KDV oranı %11 olur
 
 ÖNEMLİ SAYI FORMATLAMA KURALLARI:
 - Binlik ayırıcı: nokta (.) - 1.000, 15.750
@@ -107,7 +109,12 @@ Sadece JSON yanıtı ver, başka açıklama ekleme.
                 
                 # KDV oranı için ek kontrol - JSON'da null ise fallback kullan
                 if not extracted_data.get("tax_rate"):
+                    # Önce genel KDV oranı tespit et
                     extracted_data["tax_rate"] = self.extract_kdv_rate_from_text(response.text)
+                    
+                    # Eğer bulunamadıysa, ürün bazında KDV oranlarını tespit et
+                    if not extracted_data["tax_rate"]:
+                        extracted_data["tax_rate"] = self.extract_product_based_kdv_rates(response.text)
                     
                     # Eğer hala bulunamadıysa, KDV tutarı ve toplam tutardan hesapla
                     if not extracted_data["tax_rate"] and extracted_data.get("tax_amount") and extracted_data.get("total_amount"):
@@ -179,7 +186,12 @@ Sadece JSON yanıtı ver, başka açıklama ekleme.
         
         # KDV oranı için özel fallback - eğer JSON'dan çıkarılamadıysa
         if not extracted["tax_rate"]:
+            # Önce genel KDV oranı tespit et
             extracted["tax_rate"] = self.extract_kdv_rate_from_text(text)
+            
+            # Eğer bulunamadıysa, ürün bazında KDV oranlarını tespit et
+            if not extracted["tax_rate"]:
+                extracted["tax_rate"] = self.extract_product_based_kdv_rates(text)
             
             # Eğer hala bulunamadıysa, KDV tutarı ve toplam tutardan hesapla
             if not extracted["tax_rate"] and extracted["tax_amount"] and extracted["total_amount"]:
@@ -195,6 +207,7 @@ Sadece JSON yanıtı ver, başka açıklama ekleme.
     def extract_kdv_rate_from_text(self, text: str) -> Optional[str]:
         """
         Metinden KDV oranını çıkarmak için gelişmiş regex pattern'leri
+        Birden fazla ürün olduğunda tüm KDV oranlarını toplar
         """
         # KDV oranı için çeşitli pattern'ler
         kdv_patterns = [
@@ -229,8 +242,43 @@ Sadece JSON yanıtı ver, başka açıklama ekleme.
                     found_rates.append(int(rate))
         
         if found_rates:
-            # En yüksek oranı döndür (genellikle ana KDV oranı)
-            return str(max(found_rates))
+            # Benzersiz KDV oranlarını topla (aynı oranı birden fazla kez saymamak için)
+            unique_rates = list(set(found_rates))
+            total_rate = sum(unique_rates)
+            print(f"🔍 Bulunan KDV oranları: {unique_rates}, Toplam: {total_rate}%")
+            return str(total_rate)
+        
+        return None
+    
+    def extract_product_based_kdv_rates(self, text: str) -> Optional[str]:
+        """
+        Faturada ürün bazında KDV oranlarını tespit eder ve toplar
+        """
+        # Ürün satırlarını tespit etmek için pattern'ler
+        product_patterns = [
+            # Tablo formatında ürün satırları
+            r'(\d+[.,]\d{2})\s*TL.*?(\d{1,2})%',  # Tutar TL ... %18
+            r'(\d{1,2})%.*?(\d+[.,]\d{2})\s*TL',  # %18 ... Tutar TL
+            r'KDV\s*(\d{1,2})%.*?(\d+[.,]\d{2})',  # KDV 18% ... Tutar
+            r'(\d+[.,]\d{2}).*?KDV\s*(\d{1,2})%',  # Tutar ... KDV 18%
+        ]
+        
+        found_rates = []
+        
+        for pattern in product_patterns:
+            matches = re.findall(pattern, text, re.IGNORECASE | re.MULTILINE)
+            for match in matches:
+                # Match'ten KDV oranını çıkar
+                for group in match:
+                    if group.isdigit() and int(group) in [0, 1, 8, 18, 20]:
+                        found_rates.append(int(group))
+        
+        if found_rates:
+            # Benzersiz oranları topla
+            unique_rates = list(set(found_rates))
+            total_rate = sum(unique_rates)
+            print(f"🛍️ Ürün bazında bulunan KDV oranları: {unique_rates}, Toplam: {total_rate}%")
+            return str(total_rate)
         
         return None
     
