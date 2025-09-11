@@ -21,6 +21,11 @@ const ProcessedInvoices = () => {
   const [sortOrder, setSortOrder] = useState('desc');
   const [selectedInvoice, setSelectedInvoice] = useState(null);
   const [showModal, setShowModal] = useState(false);
+  const [dateFilter, setDateFilter] = useState({
+    startDate: '',
+    endDate: '',
+    enabled: false
+  });
 
   // Faturaları yükle
   useEffect(() => {
@@ -32,9 +37,11 @@ const ProcessedInvoices = () => {
       setLoading(true);
       const response = await axios.get('/invoices');
       setInvoices(response.data);
+      console.log('✅ Faturalar başarıyla yüklendi:', response.data.length);
     } catch (error) {
-      console.error('Error fetching invoices:', error);
-      toast.error('Faturalar yüklenirken hata oluştu');
+      console.error('❌ Faturalar yüklenirken hata:', error);
+      console.error('Hata detayları:', error.response?.data);
+      toast.error(`Faturalar yüklenirken hata oluştu: ${error.response?.data?.detail || error.message}`);
     } finally {
       setLoading(false);
     }
@@ -43,7 +50,17 @@ const ProcessedInvoices = () => {
   // Excel export
   const exportToExcel = async () => {
     try {
-      const response = await axios.get('/invoices/export/excel', {
+      // Tarih filtresi parametrelerini hazırla
+      const params = new URLSearchParams();
+      if (dateFilter.enabled && dateFilter.startDate) {
+        params.append('start_date', dateFilter.startDate);
+      }
+      if (dateFilter.enabled && dateFilter.endDate) {
+        params.append('end_date', dateFilter.endDate);
+      }
+      
+      const url = `/invoices/export/excel${params.toString() ? '?' + params.toString() : ''}`;
+      const response = await axios.get(url, {
         responseType: 'blob',
       });
       
@@ -52,14 +69,27 @@ const ProcessedInvoices = () => {
         type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
       });
       
-      const url = window.URL.createObjectURL(blob);
+      const downloadUrl = window.URL.createObjectURL(blob);
       const link = document.createElement('a');
-      link.href = url;
-      link.download = `faturalar_${new Date().toISOString().split('T')[0]}.xlsx`;
+      link.href = downloadUrl;
+      
+      // Dosya adını tarih filtresine göre ayarla
+      let filename = 'faturalar';
+      if (dateFilter.enabled && dateFilter.startDate && dateFilter.endDate) {
+        filename = `faturalar_${dateFilter.startDate}_${dateFilter.endDate}`;
+      } else if (dateFilter.enabled && dateFilter.startDate) {
+        filename = `faturalar_${dateFilter.startDate}_sonrası`;
+      } else if (dateFilter.enabled && dateFilter.endDate) {
+        filename = `faturalar_${dateFilter.endDate}_öncesi`;
+      } else {
+        filename = `faturalar_${new Date().toISOString().split('T')[0]}`;
+      }
+      
+      link.download = `${filename}.xlsx`;
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
-      window.URL.revokeObjectURL(url);
+      window.URL.revokeObjectURL(downloadUrl);
       
       toast.success('Excel dosyası başarıyla indirildi!');
     } catch (error) {
@@ -76,11 +106,31 @@ const ProcessedInvoices = () => {
 
   // Filtreleme ve sıralama
   const filteredAndSortedInvoices = invoices
-    .filter(invoice => 
-      invoice.company_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      invoice.invoice_number?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      invoice.filename?.toLowerCase().includes(searchTerm.toLowerCase())
-    )
+    .filter(invoice => {
+      // Metin arama filtresi
+      const matchesSearch = invoice.company_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        invoice.invoice_number?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        invoice.filename?.toLowerCase().includes(searchTerm.toLowerCase());
+      
+      // Tarih filtresi
+      let matchesDate = true;
+      if (dateFilter.enabled) {
+        const invoiceDate = new Date(invoice.created_at);
+        
+        if (dateFilter.startDate) {
+          const startDate = new Date(dateFilter.startDate);
+          matchesDate = matchesDate && invoiceDate >= startDate;
+        }
+        
+        if (dateFilter.endDate) {
+          const endDate = new Date(dateFilter.endDate);
+          endDate.setHours(23, 59, 59, 999); // Gün sonuna kadar dahil et
+          matchesDate = matchesDate && invoiceDate <= endDate;
+        }
+      }
+      
+      return matchesSearch && matchesDate;
+    })
     .sort((a, b) => {
       let aValue = a[sortBy];
       let bValue = b[sortBy];
@@ -130,10 +180,55 @@ const ProcessedInvoices = () => {
             <div>
               <h1 className="text-2xl font-bold text-gray-900">İşlem Görmüş Faturalar</h1>
               <p className="text-sm text-gray-600 mt-1">
-                Toplam {invoices.length} fatura işlendi
+                {dateFilter.enabled ? (
+                  <>
+                    {filteredAndSortedInvoices.length} fatura gösteriliyor 
+                    (Toplam {invoices.length} faturadan)
+                    {dateFilter.startDate && dateFilter.endDate && (
+                      <span className="ml-1 text-blue-600">
+                        ({dateFilter.startDate} - {dateFilter.endDate})
+                      </span>
+                    )}
+                  </>
+                ) : (
+                  `Toplam ${invoices.length} fatura işlendi`
+                )}
               </p>
             </div>
-            <div className="mt-4 sm:mt-0">
+            <div className="mt-4 sm:mt-0 flex flex-col sm:flex-row gap-3">
+              {/* Tarih Filtresi */}
+              <div className="flex items-center space-x-2">
+                <label className="flex items-center">
+                  <input
+                    type="checkbox"
+                    checked={dateFilter.enabled}
+                    onChange={(e) => setDateFilter(prev => ({ ...prev, enabled: e.target.checked }))}
+                    className="rounded border-gray-300 text-primary-600 focus:ring-primary-500"
+                  />
+                  <span className="ml-2 text-sm text-gray-700">Tarih Filtresi</span>
+                </label>
+              </div>
+              
+              {dateFilter.enabled && (
+                <div className="flex items-center space-x-2">
+                  <input
+                    type="date"
+                    value={dateFilter.startDate}
+                    onChange={(e) => setDateFilter(prev => ({ ...prev, startDate: e.target.value }))}
+                    className="block w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-primary-500 focus:border-primary-500"
+                    placeholder="Başlangıç tarihi"
+                  />
+                  <span className="text-gray-500">-</span>
+                  <input
+                    type="date"
+                    value={dateFilter.endDate}
+                    onChange={(e) => setDateFilter(prev => ({ ...prev, endDate: e.target.value }))}
+                    className="block w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-primary-500 focus:border-primary-500"
+                    placeholder="Bitiş tarihi"
+                  />
+                </div>
+              )}
+              
               <button
                 onClick={exportToExcel}
                 disabled={invoices.length === 0}
@@ -285,7 +380,16 @@ const ProcessedInvoices = () => {
                     
                     {/* KDV Oranı - 5. Sütun */}
                     <td className="px-6 py-4 whitespace-nowrap">
-                      {invoice.tax_rate ? (
+                      {invoice.has_multiple_products && invoice.products_data && invoice.products_data.length > 0 ? (
+                        <div className="space-y-1">
+                          <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                            📦 Çoklu Ürün
+                          </span>
+                          <div className="text-xs text-gray-600">
+                            {invoice.products_data.length} ürün
+                          </div>
+                        </div>
+                      ) : invoice.tax_rate ? (
                         <span className="inline-flex items-center px-2 py-1 rounded-full text-sm font-medium bg-green-100 text-green-800">
                           ✅ %{invoice.tax_rate}
                         </span>
@@ -382,6 +486,57 @@ const ProcessedInvoices = () => {
                   <p className="mt-1 text-sm text-gray-900">{formatDate(selectedInvoice.created_at)}</p>
                 </div>
               </div>
+
+              {/* Multiple Products Display in Modal */}
+              {selectedInvoice.has_multiple_products && selectedInvoice.products_data && selectedInvoice.products_data.length > 0 && (
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-3">Ürün Detayları</label>
+                  <div className="overflow-x-auto">
+                    <table className="min-w-full divide-y divide-gray-200">
+                      <thead className="bg-gray-50">
+                        <tr>
+                          <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Ürün Adı
+                          </th>
+                          <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Miktar
+                          </th>
+                          <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Birim Fiyat
+                          </th>
+                          <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Toplam Fiyat
+                          </th>
+                          <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            KDV Oranı
+                          </th>
+                        </tr>
+                      </thead>
+                      <tbody className="bg-white divide-y divide-gray-200">
+                        {selectedInvoice.products_data.map((product, index) => (
+                          <tr key={index} className="hover:bg-gray-50">
+                            <td className="px-3 py-2 whitespace-nowrap text-sm text-gray-900">
+                              {product.product_name || '-'}
+                            </td>
+                            <td className="px-3 py-2 whitespace-nowrap text-sm text-gray-900">
+                              {product.quantity || '1'}
+                            </td>
+                            <td className="px-3 py-2 whitespace-nowrap text-sm text-gray-900">
+                              {product.unit_price ? `${product.unit_price} TL` : '-'}
+                            </td>
+                            <td className="px-3 py-2 whitespace-nowrap text-sm text-gray-900">
+                              {product.total_price ? `${product.total_price} TL` : '-'}
+                            </td>
+                            <td className="px-3 py-2 whitespace-nowrap text-sm text-gray-900">
+                              {product.tax_rate ? `%${product.tax_rate}` : '-'}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
               
               <div>
                 <label className="block text-sm font-medium text-gray-700">Dosya Adı</label>

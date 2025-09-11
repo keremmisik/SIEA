@@ -34,6 +34,16 @@ class InvoiceService:
             except:
                 pass
         
+        # Çoklu ürün verilerini işle
+        has_multiple_products = extracted_data.get('has_multiple_products', False)
+        products_data = extracted_data.get('products', [])
+        
+        # Güvenlik kontrolü
+        if not isinstance(products_data, list):
+            products_data = []
+        if not isinstance(has_multiple_products, bool):
+            has_multiple_products = False
+        
         # Veritabanı modeli oluştur
         db_invoice = Invoice(
             filename=invoice_data.filename,
@@ -44,7 +54,9 @@ class InvoiceService:
             company_name=extracted_data.get('company_name'),
             total_amount=extracted_data.get('total_amount'),
             tax_amount=extracted_data.get('tax_amount'),
-            tax_rate=extracted_data.get('tax_rate')
+            tax_rate=extracted_data.get('tax_rate'),
+            has_multiple_products=has_multiple_products,
+            products_data=products_data
         )
         
         db.add(db_invoice)
@@ -66,7 +78,7 @@ class InvoiceService:
             Invoice.user_id == user_id
         ).order_by(Invoice.created_at.desc()).all()
         
-        # OCR verilerini decrypt et
+        # OCR verilerini decrypt et ve güvenlik kontrolü yap
         for invoice in invoices:
             if invoice.ocr_data:
                 try:
@@ -74,6 +86,14 @@ class InvoiceService:
                 except:
                     # Decrypt hatası durumunda boş dict döndür
                     invoice.ocr_data = {}
+            
+            # Çoklu ürün verilerini güvenli hale getir
+            if not hasattr(invoice, 'has_multiple_products') or invoice.has_multiple_products is None:
+                invoice.has_multiple_products = False
+            if not hasattr(invoice, 'products_data') or invoice.products_data is None:
+                invoice.products_data = []
+            elif not isinstance(invoice.products_data, list):
+                invoice.products_data = []
         
         return invoices
     
@@ -89,6 +109,15 @@ class InvoiceService:
                 invoice.ocr_data = self.encryption_service.decrypt_data(invoice.ocr_data)
             except:
                 invoice.ocr_data = {}
+        
+        # Çoklu ürün verilerini güvenli hale getir
+        if invoice:
+            if not hasattr(invoice, 'has_multiple_products') or invoice.has_multiple_products is None:
+                invoice.has_multiple_products = False
+            if not hasattr(invoice, 'products_data') or invoice.products_data is None:
+                invoice.products_data = []
+            elif not isinstance(invoice.products_data, list):
+                invoice.products_data = []
         
         return invoice
     
@@ -127,3 +156,45 @@ class InvoiceService:
                 Invoice.user_id == user_id
             ).order_by(Invoice.created_at.desc()).first()
         }
+    
+    def get_user_invoices_with_date_filter(self, user_id: int, start_date: str = None, end_date: str = None, db: Session = None) -> List[Invoice]:
+        """Kullanıcının faturalarını tarih filtresi ile getir"""
+        query = db.query(Invoice).filter(Invoice.user_id == user_id)
+        
+        # Tarih filtresi uygula
+        if start_date:
+            try:
+                start_datetime = datetime.strptime(start_date, '%Y-%m-%d')
+                query = query.filter(Invoice.created_at >= start_datetime)
+            except ValueError:
+                pass  # Geçersiz tarih formatı
+        
+        if end_date:
+            try:
+                end_datetime = datetime.strptime(end_date, '%Y-%m-%d')
+                # Bitiş tarihini gün sonuna kadar dahil et
+                end_datetime = end_datetime.replace(hour=23, minute=59, second=59)
+                query = query.filter(Invoice.created_at <= end_datetime)
+            except ValueError:
+                pass  # Geçersiz tarih formatı
+        
+        invoices = query.order_by(Invoice.created_at.desc()).all()
+        
+        # OCR verilerini decrypt et ve güvenlik kontrolü yap
+        for invoice in invoices:
+            if invoice.ocr_data:
+                try:
+                    invoice.ocr_data = self.encryption_service.decrypt_data(invoice.ocr_data)
+                except:
+                    # Decrypt hatası durumunda boş dict döndür
+                    invoice.ocr_data = {}
+            
+            # Çoklu ürün verilerini güvenli hale getir
+            if not hasattr(invoice, 'has_multiple_products') or invoice.has_multiple_products is None:
+                invoice.has_multiple_products = False
+            if not hasattr(invoice, 'products_data') or invoice.products_data is None:
+                invoice.products_data = []
+            elif not isinstance(invoice.products_data, list):
+                invoice.products_data = []
+        
+        return invoices

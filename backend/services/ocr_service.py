@@ -4,7 +4,7 @@ import re
 import json
 import os
 from datetime import datetime
-from typing import Dict, Any, Optional
+from typing import Dict, Any, Optional, List
 import google.generativeai as genai
 from decouple import config
 
@@ -55,12 +55,27 @@ Bu Türkçe faturayı analiz et ve aşağıdaki JSON formatında bilgileri çık
     "invoice_date": "fatura_tarihi",
     "total_amount": "toplam_tutar",
     "tax_amount": "kdv_tutarı",
-    "tax_rate": "kdv_oranı"
+    "tax_rate": "kdv_oranı",
+    "has_multiple_products": true/false,
+    "products": [
+        {
+            "product_name": "ürün_adı",
+            "quantity": "miktar",
+            "unit_price": "birim_fiyat",
+            "total_price": "toplam_fiyat",
+            "tax_rate": "kdv_oranı",
+            "tax_amount": "kdv_tutarı"
+        }
+    ]
 }
 
 KURALLAR:
 1. ŞİRKET ADI: Faturanın EN ÜST satırında bulunan şirket ismi
-2. FATURA NO: "FATURA NO:", "FATURA NUMARASI:", "NO:" yazısının yanındaki değer (harf+sayı olabilir)
+2. FATURA NO: Fatura numarasını bulmak için şu öncelik sırasını takip et:
+   - ÖNCE: "FATURA NO:", "FATURA NUMARASI:", "FATURA NO" yazısının yanındaki değer
+   - EĞER FATURA NO YOKSA: "BELGE NO:", "BELGE NUMARASI:", "BELGE NO" yazısının yanındaki değer
+   - EĞER İKİSİ DE YOKSA: "NO:", "NUMARA:", "SIRA NO" yazısının yanındaki değer
+   - Değer harf+sayı olabilir (örn: F2024001, 2024-001, ABC123)
 3. TARİH: Fatura tarihi (DD.MM.YYYY veya DD/MM/YYYY formatında)
 4. TOPLAM TUTAR: "TOPLAM", "GENEL TOPLAM" yazısının yanındaki tutar (sadece sayı+virgül/nokta, TL olmadan)
 5. KDV TUTARI: "KDV", "K.D.V" yazısının yanındaki tutar (sadece sayı+virgül/nokta, TL olmadan)
@@ -72,6 +87,28 @@ KURALLAR:
    - Fatura detaylarında ürün bazında yazılı KDV oranları
    - Türkiye'de yaygın KDV oranları: 0, 1, 8, 18, 20
    - Sadece sayıyı döndür (% işareti olmadan)
+
+ÇOKLU ÜRÜN DETAYLARI:
+- has_multiple_products: Eğer faturada birden fazla farklı ürün varsa true, tek ürün varsa false
+- products: Her ürün için ayrı obje oluştur
+- Her ürün için kendi KDV oranını ve tutarını belirle
+- Eğer tek ürün varsa, products array'ini boş bırak (eski sistem gibi çalışsın)
+- Eğer birden fazla ürün varsa, her ürün için:
+  - product_name: Ürün adı veya açıklaması
+  - quantity: Miktar (adet, kg, vs.) - eğer bulunamazsa "1" yaz (MUTLAKA STRING OLARAK)
+  - unit_price: Birim fiyat (çok dikkatli analiz et) (MUTLAKA STRING OLARAK)
+  - total_price: O ürünün toplam fiyatı (MUTLAKA STRING OLARAK)
+  - tax_rate: O ürünün KDV oranı (sadece sayı) (MUTLAKA STRING OLARAK)
+  - tax_amount: O ürünün KDV tutarı (MUTLAKA STRING OLARAK)
+
+BİRİM FİYAT ANALİZİ İÇİN ÖNEMLİ KURALLAR:
+- Birim fiyat genellikle "adet", "kg", "lt", "m²" gibi birimlerle birlikte yazılır
+- "Birim Fiyat", "Fiyat", "Adet Fiyat" gibi başlıkların altındaki değerleri bul
+- Tablolarda genellikle 2. veya 3. sütunda yer alır
+- Virgülle ayrılmış ondalık sayılar olabilir (örn: 15,50)
+- Nokta ile ayrılmış binlik ayırıcı olabilir (örn: 1.250,75)
+- Eğer birim fiyat bulunamazsa ama toplam fiyat ve miktar varsa hesapla: total_price / quantity
+- Para birimi sembolleri (TL, ₺) kullanma, sadece sayıyı döndür
 
 ÖNEMLİ KDV ORANI DETAYLARI:
 - Eğer birden fazla KDV oranı varsa, TÜM KDV oranlarını topla (örn: %1 + %10 = %11)
@@ -107,6 +144,10 @@ Sadece JSON yanıtı ver, başka açıklama ekleme.
                 
                 extracted_data = json.loads(json_text)
                 
+                # Fatura numarası için öncelik kontrolü
+                if not extracted_data.get("invoice_number"):
+                    extracted_data["invoice_number"] = self.extract_invoice_number_with_priority(response.text)
+                
                 # KDV oranı için ek kontrol - JSON'da null ise fallback kullan
                 if not extracted_data.get("tax_rate"):
                     # Önce genel KDV oranı tespit et
@@ -124,6 +165,15 @@ Sadece JSON yanıtı ver, başka açıklama ekleme.
                         )
                         if calculated_rate:
                             extracted_data["tax_rate"] = calculated_rate
+                
+                # Çoklu ürün verilerini işle ve birim fiyatları hesapla
+                if extracted_data.get("has_multiple_products") and extracted_data.get("products"):
+                    try:
+                        extracted_data["products"] = self.process_products_data(extracted_data["products"])
+                    except Exception as e:
+                        print(f"❌ Ürün verileri işlenirken hata: {e}")
+                        # Hata durumunda products array'ini boş bırak
+                        extracted_data["products"] = []
                             
             except json.JSONDecodeError as e:
                 print(f"JSON parse error: {e}")
@@ -164,18 +214,30 @@ Sadece JSON yanıtı ver, başka açıklama ekleme.
             "invoice_date": None,
             "total_amount": None,
             "tax_amount": None,
-            "tax_rate": None
+            "tax_rate": None,
+            "has_multiple_products": False,
+            "products": []
         }
         
         # Basit regex'lerle çıkar
         patterns = {
             "company_name": r'company_name["\s:]+([^,\n"]+)',
-            "invoice_number": r'invoice_number["\s:]+([^,\n"]+)',
             "invoice_date": r'invoice_date["\s:]+([^,\n"]+)',
             "total_amount": r'total_amount["\s:]+([^,\n"]+)',
             "tax_amount": r'tax_amount["\s:]+([^,\n"]+)',
             "tax_rate": r'tax_rate["\s:]+([^,\n"]+)'
         }
+        
+        # Fatura numarası için öncelik sırası
+        invoice_number_patterns = [
+            r'invoice_number["\s:]+([^,\n"]+)',  # JSON'dan gelen
+            r'FATURA\s+NO[:\s]+([A-Za-z0-9\-_/]+)',  # FATURA NO: pattern
+            r'FATURA\s+NUMARASI[:\s]+([A-Za-z0-9\-_/]+)',  # FATURA NUMARASI: pattern
+            r'BELGE\s+NO[:\s]+([A-Za-z0-9\-_/]+)',  # BELGE NO: pattern
+            r'BELGE\s+NUMARASI[:\s]+([A-Za-z0-9\-_/]+)',  # BELGE NUMARASI: pattern
+            r'NO[:\s]+([A-Za-z0-9\-_/]+)',  # NO: pattern
+            r'NUMARA[:\s]+([A-Za-z0-9\-_/]+)',  # NUMARA: pattern
+        ]
         
         for key, pattern in patterns.items():
             match = re.search(pattern, text, re.IGNORECASE)
@@ -183,6 +245,16 @@ Sadece JSON yanıtı ver, başka açıklama ekleme.
                 value = match.group(1).strip().strip('"').strip()
                 if value and value.lower() != 'null':
                     extracted[key] = value
+        
+        # Fatura numarası için öncelik sırası ile arama
+        for pattern in invoice_number_patterns:
+            match = re.search(pattern, text, re.IGNORECASE)
+            if match:
+                value = match.group(1).strip().strip('"').strip()
+                if value and value.lower() != 'null' and len(value) > 0:
+                    extracted["invoice_number"] = value
+                    print(f"🔍 Fatura numarası bulundu: {value} (Pattern: {pattern})")
+                    break  # İlk bulunan değeri kullan (öncelik sırası)
         
         # KDV oranı için özel fallback - eğer JSON'dan çıkarılamadıysa
         if not extracted["tax_rate"]:
@@ -201,6 +273,14 @@ Sadece JSON yanıtı ver, başka açıklama ekleme.
                 )
                 if calculated_rate:
                     extracted["tax_rate"] = calculated_rate
+        
+        # Çoklu ürün verilerini işle ve string garantisi ver
+        if extracted.get("has_multiple_products") and extracted.get("products"):
+            try:
+                extracted["products"] = self.process_products_data(extracted["products"])
+            except Exception as e:
+                print(f"❌ Fallback ürün verileri işlenirken hata: {e}")
+                extracted["products"] = []
         
         return extracted
     
@@ -317,6 +397,31 @@ Sadece JSON yanıtı ver, başka açıklama ekleme.
         
         return None
     
+    def extract_invoice_number_with_priority(self, text: str) -> Optional[str]:
+        """
+        Fatura numarasını öncelik sırası ile çıkarır: Fatura No > Belge No > No
+        """
+        # Fatura numarası için öncelik sırası
+        invoice_number_patterns = [
+            r'FATURA\s+NO[:\s]+([A-Za-z0-9\-_/]+)',  # FATURA NO: pattern
+            r'FATURA\s+NUMARASI[:\s]+([A-Za-z0-9\-_/]+)',  # FATURA NUMARASI: pattern
+            r'BELGE\s+NO[:\s]+([A-Za-z0-9\-_/]+)',  # BELGE NO: pattern
+            r'BELGE\s+NUMARASI[:\s]+([A-Za-z0-9\-_/]+)',  # BELGE NUMARASI: pattern
+            r'NO[:\s]+([A-Za-z0-9\-_/]+)',  # NO: pattern
+            r'NUMARA[:\s]+([A-Za-z0-9\-_/]+)',  # NUMARA: pattern
+        ]
+        
+        for i, pattern in enumerate(invoice_number_patterns):
+            match = re.search(pattern, text, re.IGNORECASE)
+            if match:
+                value = match.group(1).strip().strip('"').strip()
+                if value and value.lower() != 'null' and len(value) > 0:
+                    priority_type = ["FATURA NO", "FATURA NUMARASI", "BELGE NO", "BELGE NUMARASI", "NO", "NUMARA"][i]
+                    print(f"🔍 Fatura numarası bulundu: {value} (Öncelik: {priority_type})")
+                    return value
+        
+        return None
+    
     def calculate_extraction_score(self, extracted_data: Dict[str, Any]) -> Dict[str, Any]:
         """
         Ana 4 alanın (Şirket, Fatura No, KDV, Tutar) çıkarma başarısını skorlar
@@ -374,3 +479,82 @@ Sadece JSON yanıtı ver, başka açıklama ekleme.
         score["overall"] = (score["company_name"] + score["invoice_number"] + score["tax_amount"] + score["total_amount"] + score["tax_rate"]) / 5
         
         return score
+    
+    def process_products_data(self, products: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+        """
+        Ürün verilerini işler ve eksik birim fiyatları hesaplar
+        """
+        if not products or not isinstance(products, list):
+            print("⚠️ Geçersiz ürün verisi")
+            return []
+        
+        processed_products = []
+        
+        for i, product in enumerate(products):
+            try:
+                if not isinstance(product, dict):
+                    print(f"⚠️ Ürün {i} geçersiz format: {product}")
+                    continue
+                    
+                processed_product = product.copy()
+                
+                # Miktar için default değer - string olarak garantile
+                if not processed_product.get("quantity"):
+                    processed_product["quantity"] = "1"
+                else:
+                    # Eğer integer ise string'e çevir
+                    if isinstance(processed_product["quantity"], (int, float)):
+                        processed_product["quantity"] = str(int(processed_product["quantity"]))
+                
+                # Tax rate için string garantisi
+                if processed_product.get("tax_rate"):
+                    if isinstance(processed_product["tax_rate"], (int, float)):
+                        processed_product["tax_rate"] = str(int(processed_product["tax_rate"]))
+                
+                # Birim fiyat hesaplama
+                if not processed_product.get("unit_price") and processed_product.get("total_price") and processed_product.get("quantity"):
+                    try:
+                        total_price = self.clean_amount(processed_product["total_price"])
+                        quantity = self.clean_amount(processed_product["quantity"])
+                        
+                        if total_price and quantity and quantity > 0:
+                            unit_price = total_price / quantity
+                            processed_product["unit_price"] = f"{unit_price:.2f}".replace('.', ',')
+                            print(f"🔢 Birim fiyat hesaplandı: {processed_product['unit_price']} TL")
+                    except (ValueError, ZeroDivisionError) as e:
+                        print(f"⚠️ Birim fiyat hesaplama hatası: {e}")
+                
+                processed_products.append(processed_product)
+                
+            except Exception as e:
+                print(f"❌ Ürün {i} işlenirken hata: {e}")
+                # Hatalı ürünü atla ama devam et
+                continue
+        
+        return processed_products
+    
+    def clean_amount(self, amount_str: str) -> Optional[float]:
+        """
+        Tutar string'ini temizler ve float'a çevirir
+        """
+        if not amount_str:
+            return None
+        
+        try:
+            # Virgülü noktaya çevir ve sayı olmayan karakterleri temizle
+            cleaned = re.sub(r'[^\d,.]', '', str(amount_str))
+            cleaned = cleaned.replace(',', '.')
+            
+            # Eğer sadece nokta varsa (binlik ayırıcı), onu kaldır
+            if '.' in cleaned and ',' not in cleaned:
+                # Son 3 karakterden önce nokta varsa binlik ayırıcıdır
+                parts = cleaned.split('.')
+                if len(parts) == 2 and len(parts[1]) == 3:
+                    cleaned = cleaned.replace('.', '')
+                else:
+                    # Ondalık ayırıcı olarak kabul et
+                    pass
+            
+            return float(cleaned)
+        except (ValueError, TypeError):
+            return None

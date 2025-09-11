@@ -127,8 +127,29 @@ async def get_user_invoices(
     db: Session = Depends(get_db)
 ):
     """Kullanıcının işlem görmüş faturalarını getir"""
-    invoices = invoice_service.get_user_invoices(current_user.id, db)
-    return [InvoiceResponse.model_validate(invoice) for invoice in invoices]
+    try:
+        print(f"🔍 Kullanıcı {current_user.id} için faturalar getiriliyor...")
+        invoices = invoice_service.get_user_invoices(current_user.id, db)
+        print(f"✅ {len(invoices)} fatura bulundu")
+        
+        # Her faturayı validate et
+        validated_invoices = []
+        for i, invoice in enumerate(invoices):
+            try:
+                validated_invoice = InvoiceResponse.model_validate(invoice)
+                validated_invoices.append(validated_invoice)
+            except Exception as e:
+                print(f"❌ Fatura {i} validate edilemedi: {e}")
+                print(f"Fatura verisi: {invoice}")
+                # Hatalı faturayı atla ama devam et
+                continue
+        
+        print(f"✅ {len(validated_invoices)} fatura başarıyla validate edildi")
+        return validated_invoices
+        
+    except Exception as e:
+        print(f"❌ Faturalar getirilirken hata: {e}")
+        raise HTTPException(status_code=500, detail=f"Faturalar getirilirken hata oluştu: {str(e)}")
 
 @app.get("/invoices/{invoice_id}", response_model=InvoiceResponse)
 async def get_invoice(
@@ -161,20 +182,39 @@ async def debug_ocr(
 
 @app.get("/invoices/export/excel")
 async def export_invoices_excel(
+    start_date: Optional[str] = None,
+    end_date: Optional[str] = None,
     current_user = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
     """Fatura verilerini Excel formatında export et"""
     try:
-        invoices = invoice_service.get_user_invoices(current_user.id, db)
+        # Tarih filtresi uygula
+        invoices = invoice_service.get_user_invoices_with_date_filter(
+            current_user.id, 
+            start_date, 
+            end_date, 
+            db
+        )
         excel_data = excel_service.create_excel_export(invoices)
         
         from fastapi.responses import StreamingResponse
         
+        # Dosya adını tarih filtresine göre ayarla
+        filename = "invoices"
+        if start_date and end_date:
+            filename = f"invoices_{start_date}_to_{end_date}"
+        elif start_date:
+            filename = f"invoices_from_{start_date}"
+        elif end_date:
+            filename = f"invoices_until_{end_date}"
+        else:
+            filename = f"invoices_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
+        
         return StreamingResponse(
             io.BytesIO(excel_data),
             media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-            headers={"Content-Disposition": f"attachment; filename=invoices_{datetime.now().strftime('%Y%m%d_%H%M%S')}.xlsx"}
+            headers={"Content-Disposition": f"attachment; filename={filename}.xlsx"}
         )
     
     except Exception as e:

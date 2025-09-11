@@ -38,6 +38,10 @@ class Invoice(Base):
     tax_amount = Column(String)
     tax_rate = Column(String)
     
+    # Multiple products support
+    has_multiple_products = Column(Boolean, default=False)
+    products_data = Column(JSON)  # Array of product objects with individual KDV rates
+    
     # Metadata
     created_at = Column(DateTime, default=func.now())
     expires_at = Column(DateTime, default=lambda: datetime.utcnow() + timedelta(days=5*365))  # 5 years

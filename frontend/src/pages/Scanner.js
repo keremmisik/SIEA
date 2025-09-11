@@ -370,7 +370,8 @@ const Scanner = () => {
                     </h3>
                   </div>
                   
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+                  {/* Basic Invoice Info */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm mb-6">
                     {result.invoice_number && (
                       <div>
                         <span className="font-medium text-gray-700">Fatura No:</span>
@@ -398,6 +399,76 @@ const Scanner = () => {
                       </div>
                     )}
                   </div>
+
+                  {/* Multiple Products Display */}
+                  {result.has_multiple_products && result.products_data && result.products_data.length > 0 ? (
+                    <div className="mb-6">
+                      <h4 className="text-md font-semibold text-gray-800 mb-3">Ürün Detayları</h4>
+                      <div className="overflow-x-auto">
+                        <table className="min-w-full divide-y divide-gray-200">
+                          <thead className="bg-gray-50">
+                            <tr>
+                              <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                Ürün Adı
+                              </th>
+                              <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                Miktar
+                              </th>
+                              <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                Birim Fiyat
+                              </th>
+                              <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                Toplam Fiyat
+                              </th>
+                              <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                KDV Oranı
+                              </th>
+                            </tr>
+                          </thead>
+                          <tbody className="bg-white divide-y divide-gray-200">
+                            {result.products_data.map((product, index) => (
+                              <tr key={index} className="hover:bg-gray-50">
+                                <td className="px-3 py-2 whitespace-nowrap text-sm text-gray-900">
+                                  {product.product_name || '-'}
+                                </td>
+                                <td className="px-3 py-2 whitespace-nowrap text-sm text-gray-900">
+                                  {product.quantity || '1'}
+                                </td>
+                                <td className="px-3 py-2 whitespace-nowrap text-sm text-gray-900">
+                                  {product.unit_price ? `${product.unit_price} TL` : '-'}
+                                </td>
+                                <td className="px-3 py-2 whitespace-nowrap text-sm text-gray-900">
+                                  {product.total_price ? `${product.total_price} TL` : '-'}
+                                </td>
+                                <td className="px-3 py-2 whitespace-nowrap text-sm text-gray-900">
+                                  {product.tax_rate ? `%${product.tax_rate}` : '-'}
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+                  ) : (
+                    /* Single Product or Traditional Display */
+                    <div className="mb-6">
+                      <h4 className="text-md font-semibold text-gray-800 mb-3">Fatura Özeti</h4>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+                        {result.tax_rate && (
+                          <div>
+                            <span className="font-medium text-gray-700">KDV Oranı:</span>
+                            <span className="ml-2 text-gray-900">%{result.tax_rate}</span>
+                          </div>
+                        )}
+                        {result.tax_amount && (
+                          <div>
+                            <span className="font-medium text-gray-700">KDV Tutarı:</span>
+                            <span className="ml-2 text-gray-900">{result.tax_amount} TL</span>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  )}
 
                   <div className="mt-4">
                     <button
